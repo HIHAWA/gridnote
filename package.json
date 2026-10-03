@@ -1,0 +1,49 @@
+{
+  "name": "gridnote",
+  "productName": "Gridnote",
+  "version": "1.0.0",
+  "description": "Task lists, ideas and assets for game development.",
+  "main": "main.js",
+  "author": "HIHAWA",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never",
+    "vendor": "node scripts/vendor.js"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3",
+    "three": "^0.186.1"
+  },
+  "build": {
+    "appId": "com.hihawa.gridnote",
+    "productName": "Gridnote",
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "artifactName": "Gridnote-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Gridnote-Portable-${version}.${ext}"
+    }
+  }
+}
