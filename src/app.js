@@ -379,7 +379,7 @@ function renderSidebar(list) {
         const its = itemsOf(p.id);
         const done = its.filter((i) => i.done).length;
         return h("button", { class: "pbtn", id: "side-" + p.id, "aria-current": String(p.id === S.pid), title: p.name,
-          onclick: () => { S.pid = p.id; S.q = ""; S.filter = "all"; S.kind = "all"; save(); render(); $("#main").scrollTop = 0; } },
+          onclick: () => { S.pid = p.id; S.q = ""; S.filter = "all"; S.kind = "all"; resetSelection(); save(); render(); $("#main").scrollTop = 0; } },
           h("span", { id: "side-ring-" + p.id, style: "display:grid" }, ring(its.length ? done / its.length : 0)),
           h("span", { class: "pname", id: "side-name-" + p.id, text: p.name || "Untitled" }),
           h("span", { class: "mono", id: "side-open-" + p.id, title: "Tasks left", text: String(its.length - done) }));
@@ -456,12 +456,15 @@ function renderHead(p) {
           oninput: (e) => { S.q = e.target.value; render(); },
           onkeydown: (e) => { if (e.key === "Escape") { S.q = ""; render(); e.target.blur(); } } })),
       h("span", { class: "spacer" }),
+      S.tab === "assets" && files.length && !SEL.on
+        ? h("button", { class: "btn", title: "Select several files (Ctrl+A selects all)", onclick: () => { SEL.on = true; render(); } }, "Select")
+        : null,
       S.tab === "assets"
         ? h("button", { class: "btn primary", onclick: () => addFiles() }, "Add files")
         : h("button", { class: "btn", onclick: importModal }, "Paste notes")),
     chips);
 }
-function setTab(tab) { S.tab = tab; S.q = ""; save(); render(); }
+function setTab(tab) { S.tab = tab; S.q = ""; resetSelection(); save(); render(); }
 
 function refreshStats() {
   const p = S.projects[S.pid];
@@ -1127,10 +1130,75 @@ function ratio(w, hgt) {
   return r.length <= 7 ? r : (w / hgt).toFixed(2) + ":1";
 }
 
+const SEL = { on: false, ids: new Set(), last: null, visible: [] };
+function resetSelection() { SEL.on = false; SEL.ids.clear(); SEL.last = null; }
+function tileClick(e, f, files, i) {
+  if (SEL.on || e.target.closest(".tsel") || e.ctrlKey || e.metaKey || e.shiftKey) {
+    const lastIdx = files.findIndex((x) => x.id === SEL.last);
+    if (e.shiftKey && lastIdx >= 0) {
+      const [a, b] = lastIdx < i ? [lastIdx, i] : [i, lastIdx];
+      for (let k = a; k <= b; k++) SEL.ids.add(files[k].id);
+    } else if (SEL.ids.has(f.id)) {
+      SEL.ids.delete(f.id);
+    } else {
+      SEL.ids.add(f.id);
+    }
+    SEL.on = true;
+    SEL.last = f.id;
+    render();
+    return;
+  }
+  openFile(f, files, i);
+}
+async function deleteSelected() {
+  const list = [...SEL.ids].map((id) => S.files[id]).filter(Boolean);
+  if (!list.length) return;
+  const label = plural(list.length, "file");
+  const ok = await confirmBox(`Delete ${label}?`, "They will be moved to the Recycle Bin, so you can still get them back from there.", `Delete ${label}`);
+  if (!ok) return;
+  for (const f of list) await deleteFile(f);
+  resetSelection();
+  Sound.play("delete");
+  render();
+  toast(`Deleted ${label}.`);
+}
+function selectionBar(files) {
+  const n = SEL.ids.size;
+  const allOn = files.length > 0 && files.every((f) => SEL.ids.has(f.id));
+  return h("div", { class: "selbar" },
+    h("b", { text: n ? `${n} selected` : "Select files" }),
+    h("span", { class: "muted", text: "Click to select · Shift+click for a range · Ctrl+A for all" }),
+    h("span", { class: "spacer" }),
+    allOn
+      ? h("button", { class: "btn", onclick: () => { SEL.ids.clear(); render(); } }, "Select none")
+      : h("button", { class: "btn", onclick: () => { files.forEach((f) => SEL.ids.add(f.id)); render(); } }, `Select all (${files.length})`),
+    h("button", { class: "btn danger solid", disabled: !n, onclick: deleteSelected }, n ? `Delete ${plural(n, "file")}` : "Delete"),
+    h("button", { class: "btn", onclick: () => { resetSelection(); render(); } }, "Done"));
+}
+document.addEventListener("keydown", (e) => {
+  if (S.tab !== "assets" || modalClose || menuEl) return;
+  const t = document.activeElement;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+    e.preventDefault();
+    SEL.on = true;
+    SEL.visible.forEach((f) => SEL.ids.add(f.id));
+    render();
+  } else if ((e.key === "Delete" || e.key === "Backspace") && SEL.ids.size) {
+    e.preventDefault();
+    deleteSelected();
+  } else if (e.key === "Escape" && SEL.on) {
+    resetSelection();
+    render();
+  }
+});
+
 function renderAssets(p) {
   const q = S.q.trim().toLowerCase();
   const files = filesOf(p.id).filter((f) => (S.kind === "all" || (f.kind || kindOf(f.ext)) === S.kind) && (!q || (f.name || "").toLowerCase().includes(q) || (f.ext || "").includes(q)));
-  const drop = h("div", { class: "drop" },
+  for (const id of [...SEL.ids]) if (!S.files[id] || S.files[id].projectId !== p.id) SEL.ids.delete(id);
+  SEL.visible = files;
+  const drop = SEL.on ? selectionBar(files) : h("div", { class: "drop" },
     h("span", {}, h("strong", { text: "Drop any files here" }), " – sprites, textures, models, sounds, videos, scripts. Or paste with Ctrl+V."));
   if (!files.length) {
     const searching = q || S.kind !== "all";
@@ -1138,13 +1206,16 @@ function renderAssets(p) {
       h("h2", { text: searching ? "No matching files" : "No files yet" }),
       h("p", { text: searching ? "Try a different search or file type." : "Keep everything this project uses in one place. Images get a transparency check, 3D models (GLB, glTF, FBX, OBJ, STL) open in a viewer that plays their animations, and sounds and videos play right here. You can also attach files to a section or to a single task." })));
   }
-  return h("div", {}, drop, h("div", { class: "agrid" }, files.map((f, i) => {
+  return h("div", {}, drop, h("div", { class: "agrid" + (SEL.on ? " selecting" : "") }, files.map((f, i) => {
     const kind = f.kind || kindOf(f.ext);
     const showImg = kind === "image" && BROWSER_IMG.includes(f.ext);
     const link = linkLabel(f);
-    return h("button", { class: "tile", "aria-label": "Open " + f.name, onclick: () => openFile(f, files, i) },
+    const picked = SEL.ids.has(f.id);
+    return h("button", { class: "tile" + (picked ? " selected" : ""), "aria-label": (SEL.on ? "Select " : "Open ") + f.name, "aria-pressed": SEL.on ? String(picked) : null,
+      onclick: (e) => tileClick(e, f, files, i) },
+      h("span", { class: "tsel", title: "Select", html: ICON.check }),
       h("div", { class: "thumb" + (showImg ? " checker" : "") },
-        showImg ? h("img", { src: fileSrc(f), alt: "", loading: "lazy", draggable: "false" })
+        showImg ? h("img", { class: f.w && f.w <= 128 && f.h <= 128 ? "pix" : null, src: fileSrc(f), alt: "", loading: "lazy", draggable: "false" })
                 : h("div", { class: "kindbox", style: `--kc:${kindColor(kind)}`, html: KIND_ICON[kind] + `<b>${f.ext || "file"}</b>` })),
       h("div", { class: "cap" },
         h("b", { text: f.name || "Untitled" }),
@@ -1154,6 +1225,76 @@ function renderAssets(p) {
 }
 
 let stageBg = "checker";
+
+// Zoom and pan for the image preview: mouse wheel zooms at the cursor, dragging pans,
+// double-click switches between "fit" and a closer look. Small sprites stay pixel-sharp.
+function makeZoom(stage, img, label) {
+  let s = 1, x = 0, y = 0, fitted = true, drag = null;
+  const iw = () => img.naturalWidth || 1, ih = () => img.naturalHeight || 1;
+  const fitScale = () => Math.max(0.01, Math.min((stage.clientWidth - 48) / iw(), (stage.clientHeight - 48) / ih(), 64));
+  const apply = () => {
+    img.style.transform = `translate(${x}px, ${y}px) scale(${s})`;
+    img.classList.toggle("pixel", s >= 2);
+    label.textContent = Math.round(s * 100) + "%";
+  };
+  const zoomAt = (scale, cx, cy) => {
+    scale = Math.max(Math.min(fitScale(), 1) / 4, Math.min(64, scale));
+    const k = scale / s;
+    x = cx - (cx - x) * k;
+    y = cy - (cy - y) * k;
+    s = scale;
+    fitted = false;
+    apply();
+  };
+  const fit = () => {
+    fitted = true;
+    s = fitScale();
+    x = (stage.clientWidth - iw() * s) / 2;
+    y = (stage.clientHeight - ih() * s) / 2;
+    apply();
+  };
+  const mid = () => [stage.clientWidth / 2, stage.clientHeight / 2];
+  const step = (d) => zoomAt(s * (d > 0 ? 1.25 : 0.8), ...mid());
+  const actual = () => zoomAt(1, ...mid());
+  const local = (e) => { const r = stage.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+
+  const onWheel = (e) => { e.preventDefault(); zoomAt(s * Math.pow(1.0018, -e.deltaY), ...local(e)); };
+  const onDown = (e) => {
+    if (e.button !== 0 || e.target.closest("button, select")) return;
+    drag = { x: e.clientX - x, y: e.clientY - y };
+    stage.setPointerCapture(e.pointerId);
+    stage.classList.add("panning");
+  };
+  const onMove = (e) => { if (!drag) return; x = e.clientX - drag.x; y = e.clientY - drag.y; fitted = false; apply(); };
+  const onUp = () => { drag = null; stage.classList.remove("panning"); };
+  const onDbl = (e) => {
+    if (e.target.closest("button, select")) return;
+    if (fitted) zoomAt(fitScale() < 1 ? 1 : fitScale() * 2, ...local(e)); else fit();
+  };
+  stage.addEventListener("wheel", onWheel, { passive: false });
+  stage.addEventListener("pointerdown", onDown);
+  stage.addEventListener("pointermove", onMove);
+  stage.addEventListener("pointerup", onUp);
+  stage.addEventListener("pointercancel", onUp);
+  stage.addEventListener("dblclick", onDbl);
+  const ro = new ResizeObserver(() => { if (fitted) fit(); });
+  ro.observe(stage);
+  if (img.complete && img.naturalWidth) fit(); else img.addEventListener("load", fit, { once: true });
+
+  return {
+    fit, actual, step,
+    dispose() {
+      ro.disconnect();
+      stage.removeEventListener("wheel", onWheel);
+      stage.removeEventListener("pointerdown", onDown);
+      stage.removeEventListener("pointermove", onMove);
+      stage.removeEventListener("pointerup", onUp);
+      stage.removeEventListener("pointercancel", onUp);
+      stage.removeEventListener("dblclick", onDbl);
+      stage.classList.remove("zoomable", "panning");
+    },
+  };
+}
 let viewerMod = null;
 async function loadViewer() {
   if (!viewerMod) viewerMod = await import("./viewer.js");
@@ -1163,8 +1304,8 @@ function openFile(f, list, index) {
   closeMenu();
   const files = list || [f];
   let i = list ? index : 0;
-  let cleanup = null, token = null;
-  const stage = h("div", { class: "stage" });
+  let cleanup = null, token = null, zoom = null;
+  const stage = h("div", { class: "stage", tabindex: "-1", onpointerdown: () => stage.focus({ preventScroll: true }) });
   const nameIn = h("input", { type: "text", id: "fd-name", "aria-label": "File name", spellcheck: "false" });
   const linkSel = h("select", { id: "fd-link", "aria-label": "Attached to" });
   const meta = h("div", { class: "meta-line mono" });
@@ -1216,10 +1357,27 @@ function openFile(f, list, index) {
     prev.hidden = next.hidden = files.length < 2;
 
     if (kind === "image" && BROWSER_IMG.includes(cur.ext)) {
-      stage.className = "stage " + (stageBg === "checker" ? "checker" : stageBg);
+      const bgClass = (k) => (k === "checker" ? "checker" : k);
+      stage.className = "stage zoomable " + bgClass(stageBg);
       const bgs = h("div", { class: "overlay" }, [["checker", "Checker"], ["light", "Light"], ["dark", "Dark"]].map(([k, label]) =>
-        h("button", { class: "chip", "aria-pressed": String(stageBg === k), onclick: () => { stageBg = k; show(); } }, label)));
-      stage.replaceChildren(h("img", { src, alt: cur.name || "" }), bgs);
+        h("button", { class: "chip", dataset: { bg: k }, "aria-pressed": String(stageBg === k), onclick: () => {
+          stageBg = k;
+          stage.classList.remove("checker", "light", "dark");
+          stage.classList.add(bgClass(k));
+          bgs.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.bg === k)));
+        } }, label)));
+      const img = h("img", { class: "zimg", src, alt: cur.name || "", draggable: "false" });
+      const zl = h("span", { class: "zlabel mono" });
+      const z = makeZoom(stage, img, zl);
+      const bar = h("div", { class: "zoombar" },
+        h("button", { class: "zbtn", title: "Zoom out (−)", "aria-label": "Zoom out", onclick: () => z.step(-1) }, "−"),
+        zl,
+        h("button", { class: "zbtn", title: "Zoom in (+)", "aria-label": "Zoom in", onclick: () => z.step(1) }, "+"),
+        h("button", { class: "zbtn wide", title: "Fit to the window (0)", onclick: () => z.fit() }, "Fit"),
+        h("button", { class: "zbtn wide", title: "Actual size (1)", onclick: () => z.actual() }, "1:1"));
+      stage.replaceChildren(img, bgs, bar);
+      zoom = z;
+      cleanup = () => { z.dispose(); zoom = null; };
       if (cur.w && cur.h) {
         bits.unshift(h("span", { text: `${cur.w} × ${cur.h} px` }), h("span", { text: ratio(cur.w, cur.h) }));
         if (isPow2(cur.w) && isPow2(cur.h)) bits.push(h("span", { class: "good", text: "✓ Power of two" }));
@@ -1293,7 +1451,7 @@ function openFile(f, list, index) {
       h("div", { class: "row" },
         h("button", { class: "btn danger", onclick: async () => {
           const cur = files[i];
-          const ok = await confirmBox(`Delete “${cur.name}”?`, "The file will be deleted from Gridnote’s data folder.", "Delete file");
+          const ok = await confirmBox(`Delete “${cur.name}”?`, "The file will be moved to the Recycle Bin.", "Delete file");
           if (!ok) return;
           await deleteFile(cur);
           Sound.play("delete");
@@ -1307,8 +1465,16 @@ function openFile(f, list, index) {
     if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
     if (e.key === "ArrowLeft" && files.length > 1) go(-1);
     if (e.key === "ArrowRight" && files.length > 1) go(1);
+    if (zoom) {
+      if (e.key === "+" || e.key === "=") zoom.step(1);
+      if (e.key === "-" || e.key === "_") zoom.step(-1);
+      if (e.key === "0") zoom.fit();
+      if (e.key === "1") zoom.actual();
+    }
   };
   document.addEventListener("keydown", onKey);
+  // Start with the preview focused so the arrow keys and zoom keys work right away.
+  stage.focus({ preventScroll: true });
   show();
 }
 

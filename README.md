@@ -9,6 +9,10 @@
   Bugs, ideas, to-dos and the files that go with them, in one place, on your own computer.
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/tasks.png" alt="Gridnote showing a game project with sections for gameplay, bugs, UI, economy and audio">
+</p>
+
 ---
 
 ## Why Gridnote
@@ -34,6 +38,8 @@ Game projects create a lot of loose notes: a bug you spotted while play-testing,
 ### Assets
 - **Any file type.** Drag files in from File Explorer, use **Add files**, or paste with `Ctrl+V`.
 - **Attach files to work.** Drop a file on a task or a section to attach it, or choose where it belongs in the file details.
+- **Zoom and pan images.** Scroll to zoom at the cursor, drag to move around, and double-click to jump between *Fit* and a closer look. Small sprites stay pixel-sharp, so even a 16×16 icon is easy to inspect.
+- **Select many files at once.** Ctrl+click or Shift+click tiles (or press Ctrl+A) and delete them in one go. Deleted files go to the Recycle Bin, so nothing is lost by accident.
 - **Previews:**
 
   | Type | Preview |
@@ -49,6 +55,17 @@ Game projects create a lot of loose notes: a bug you spotted while play-testing,
 - **Satisfying feedback.** Completing a task plays a short chime and a burst of confetti. Quick streaks climb in pitch, and finishing a whole section or project gets a bigger celebration.
 - **Sounds can be muted** from the sidebar or with `Ctrl+M`.
 - **Dark, quiet interface** that stays out of the way of your work.
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Priority stars and labels picked from a menu](docs/screenshots/labels.png) | ![Assets of every type in one grid](docs/screenshots/assets.png) |
+| **Priority and labels** are picked from a menu, and you can combine several. | **Assets** of every type in one grid, filtered by kind. |
+| ![3D model preview playing its animation](docs/screenshots/model.png) | ![A 16 by 16 sprite zoomed in, pixel-sharp](docs/screenshots/zoom.png) |
+| **3D models** open in a viewer that plays their animations. | **Zoom** into images; tiny sprites stay pixel-sharp. |
+| ![Several files selected for deletion](docs/screenshots/select.png) | |
+| **Select many files** and delete them together. | |
 
 ## Download
 
@@ -100,6 +117,25 @@ UI:
 | `Ctrl+Shift+N` | New project |
 | `Ctrl+M` | Sounds on or off |
 
+**In the file preview**
+
+| Shortcut | Action |
+|---|---|
+| Mouse wheel / `+` / `-` | Zoom in and out |
+| Drag | Move around a zoomed image |
+| Double-click | Switch between *Fit* and a closer look |
+| `0` / `1` | Fit to the window / actual size (100%) |
+| `←` / `→` | Previous / next file |
+
+**In Assets**
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl+click` / `Shift+click` | Select one file / a range of files |
+| `Ctrl+A` | Select every file shown |
+| `Delete` | Delete the selected files (they go to the Recycle Bin) |
+| `Esc` | Stop selecting |
+
 ## Your data
 
 Everything lives in `%APPDATA%\Gridnote`:
@@ -108,7 +144,7 @@ Everything lives in `%APPDATA%\Gridnote`:
 |---|---|
 | `gridnote-data.json` | All projects, sections and tasks |
 | `gridnote-data.json.bak` | The previous version, saved once per session |
-| `assets\` | Copies of every file you added |
+| `assets\` | Copies of every file you added. Deleted files are moved to the Recycle Bin. |
 
 Use **Open data folder** in the sidebar to get there quickly, and **File → Export Backup…** to save a copy of your projects somewhere else.
 

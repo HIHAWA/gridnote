@@ -233,6 +233,16 @@ body.file-over .drop { border-color: var(--accent); background: color-mix(in srg
 .tile { all: unset; cursor: pointer; display: grid; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; min-width: 0; transition: border-color .15s, transform .15s; }
 .tile:hover { border-color: var(--line-2); transform: translateY(-2px); }
 .tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tile { position: relative; }
+.tsel { position: absolute; top: 8px; left: 8px; z-index: 2; width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .8); background: rgba(8, 10, 14, .5); display: grid; place-items: center; opacity: 0; transition: opacity .12s, background .12s; }
+.tsel svg { width: 12px; height: 12px; stroke: var(--accent-ink); stroke-width: 3.2; fill: none; opacity: 0; }
+.tile:hover .tsel, .agrid.selecting .tsel { opacity: 1; }
+.tile.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.tile.selected .tsel { background: var(--accent); border-color: var(--accent); }
+.tile.selected .tsel svg { opacity: 1; }
+.agrid.selecting .tile:hover { transform: none; }
+.thumb img.pix { image-rendering: pixelated; }
+.selbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 12px; border: 1px solid var(--accent); border-radius: 12px; background: color-mix(in srgb, var(--accent) 7%, var(--surface)); font-size: 13px; }
 .checker { background-color: var(--checker-a); background-image: conic-gradient(var(--checker-b) 25%, var(--checker-a) 0 50%, var(--checker-b) 0 75%, var(--checker-a) 0); background-size: 14px 14px; }
 .thumb { aspect-ratio: 4 / 3; position: relative; background: var(--surface-2); display: grid; place-items: center; }
 .thumb.checker { background-color: var(--checker-a); }
@@ -265,6 +275,16 @@ body.file-over .drop { border-color: var(--accent); background: color-mix(in srg
 .radio { display: flex; gap: 8px; align-items: center; }
 .stage { border-radius: 10px; height: 56vh; min-height: 260px; display: grid; place-items: center; overflow: hidden; position: relative; background: var(--bg); border: 1px solid var(--line); }
 .stage img { max-width: calc(100% - 32px); max-height: calc(100% - 32px); object-fit: contain; }
+.stage:focus { outline: none; }
+.stage.zoomable { cursor: grab; touch-action: none; user-select: none; }
+.stage.zoomable.panning { cursor: grabbing; }
+.stage .zimg { position: absolute; left: 0; top: 0; max-width: none; max-height: none; transform-origin: 0 0; will-change: transform; }
+.stage .zimg.pixel { image-rendering: pixelated; }
+.zoombar { position: absolute; right: 10px; bottom: 10px; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 10px; border: 1px solid var(--line-2); background: color-mix(in srgb, var(--surface) 90%, transparent); }
+.zbtn { border: 0; background: transparent; min-width: 28px; height: 26px; border-radius: 7px; font-weight: 700; color: var(--ink-2); }
+.zbtn:hover { background: var(--surface-2); color: var(--ink); }
+.zbtn.wide { padding: 0 9px; font-size: 12px; }
+.zlabel { min-width: 50px; text-align: center; color: var(--ink); }
 .stage.light { background: #f4f5f7; }
 .stage.dark { background: #050608; }
 .stage video { max-width: 100%; max-height: 100%; }
