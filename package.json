@@ -1,7 +1,7 @@
 {
   "name": "gridnote",
   "productName": "Gridnote",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Task lists, ideas and assets for game development.",
   "main": "main.js",
   "author": "HIHAWA",

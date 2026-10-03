@@ -213,7 +213,8 @@ function registerIpc() {
 
   ipcMain.handle("assets:delete", async (_e, fileName) => {
     if (!safeName(fileName)) return false;
-    try { await fsp.unlink(path.join(assetsDir(), fileName)); } catch {}
+    const file = path.join(assetsDir(), fileName);
+    try { await shell.trashItem(file); } catch { try { await fsp.unlink(file); } catch {} }
     return true;
   });
   ipcMain.handle("assets:reveal", (_e, fileName) => {
